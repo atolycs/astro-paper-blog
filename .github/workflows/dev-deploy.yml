@@ -1,0 +1,78 @@
+name: Develop Deploy
+on:
+    workflow_dispatch:
+
+jobs:
+    setup:
+        name: Environment Setup
+        runs-on: ubuntu-latest
+        steps:
+           - name: Setup Nodejs
+             uses: actions/setup-node@v4
+
+           - name: Checkout
+             uses: actions/checkout@v4
+
+           - name: Cache setup
+             id: node-module-cache
+             uses: actions/cache/restore@v4
+             with:
+                path: '**/node_modules'
+                key: ${{ runner.os }}-node_modules-deps-${{ hashFiles('package-lock.json') }}
+
+           - name: Install Deps
+             if: steps.node-module-cache.outputs.cache-hit != 'true'
+             run: |
+                npm install
+
+           - name: Save cache
+             if: steps.node-module-cache.outputs.cache-hit != 'true'
+             uses: actions/cache/save@v4
+             with:
+                path: "**/node_modules"
+                key: ${{ runner.os }}-node_modules-deps-${{ hashFiles('package-lock.json') }}
+
+    build:
+        name: Build SSG
+        needs: [ 'setup' ]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Cache Load
+              uses: actions/cache/restore@v4
+              id: cache-check
+              with:
+                path: '**/node_modules'
+                key: ${{ runner.os }}-node_modules
+                restore-keys: |
+                    ${{ runner.os }}-node_modules
+            
+            - name: Install Deps
+              if: steps.cache-check.outputs.cache-hit != 'true'
+              run: |
+                npm install
+            
+            - name: Build SSG
+              run: |
+                npm run build
+
+    deploy:
+        name: Deploy
+        needs: ['build']
+        runs-on: ubuntu-latest
+        steps:
+            - name: Github App Token Generate
+              uses: atolycs/create-app-auth@v1
+              id: github-token
+              with:
+                app-id: ${{ secrets.APP_ID }}
+                private-key: ${{ secrets.APP_PEM }}
+
+            - name: Deploy Pages
+              uses: cloudflare/pages-action@v1
+              with:
+                apiToken: ${{ secrets.CF_API_TOKEN }}
+                accountId: ${{ secrets.CF_ACCOUNT_ID }}
+                projectName: ${{ vars.CF_PROJECT_NAME }}
+                directory: "./dist"
+                gitHubToken: ${{ steps.github-token.outputs.token }}
+             
