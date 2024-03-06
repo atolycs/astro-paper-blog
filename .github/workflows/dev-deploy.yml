@@ -1,3 +1,4 @@
+name: Develop Deploy
 on:
     workflow_dispatch:
 
@@ -61,6 +62,7 @@ jobs:
         steps:
             - name: Github App Token Generate
               uses: atolycs/create-app-auth@v1
+              id: github-token
               with:
                 app-id: ${{ secrets.APP_ID }}
                 private-key: ${{ secrets.APP_PEM }}
@@ -72,6 +74,5 @@ jobs:
                 accountId: ${{ secrets.CF_ACCOUNT_ID }}
                 projectName: ${{ vars.CF_PROJECT_NAME }}
                 directory: "./dist"
-
-
+                gitHubToken: ${{ steps.github-token.outputs.token }}
              
