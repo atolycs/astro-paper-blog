@@ -33,7 +33,7 @@ jobs:
                 key: ${{ runner.os }}-node_modules-deps-${{ hashFiles('package-lock.json') }}
 
     build:
-        name: Build SSG
+        name: Build SSG and Deploy
         needs: [ 'setup' ]
         runs-on: ubuntu-latest
         steps:
@@ -58,11 +58,6 @@ jobs:
               run: |
                 npm run build
 
-    deploy:
-        name: Deploy
-        needs: ['build']
-        runs-on: ubuntu-latest
-        steps:
             - name: Github App Token Generate
               uses: atolycs/create-app-auth@v1
               id: github-token
