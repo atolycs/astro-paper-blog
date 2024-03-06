@@ -1,0 +1,97 @@
+name: Article Release
+run-name: Article Release (${{ github.event.pull_request.title }})
+
+on:
+    pull_request:
+        types: [ opened, synchronize ]
+        paths:
+          - 'src/content/blog/**.md'
+
+jobs:
+    setup:
+        name: Environment Setup
+        runs-on: ubuntu-latest
+        steps:
+           - name: Setup Nodejs
+             uses: actions/setup-node@v4
+
+           - name: Checkout
+             uses: actions/checkout@v4
+
+           - name: Cache setup
+             id: node-module-cache
+             uses: actions/cache/restore@v4
+             with:
+                path: '**/node_modules'
+                key: ${{ runner.os }}-node_modules-deps-${{ hashFiles('package-lock.json') }}
+
+           - name: Install Deps
+             if: steps.node-module-cache.outputs.cache-hit != 'true'
+             run: |
+                npm install
+
+           - name: Save cache
+             if: steps.node-module-cache.outputs.cache-hit != 'true'
+             uses: actions/cache/save@v4
+             with:
+                path: "**/node_modules"
+                key: ${{ runner.os }}-node_modules-deps-${{ hashFiles('package-lock.json') }}
+
+    build:
+        name: Build SSG and Deploy
+        needs: [ 'setup' ]
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+  
+
+            - name: Cache Load
+              uses: actions/cache/restore@v4
+              id: cache-check
+              with:
+                path: '**/node_modules'
+                key: ${{ runner.os }}-node_modules
+                restore-keys: |
+                    ${{ runner.os }}-node_modules
+            
+            - name: Install Deps
+              if: steps.cache-check.outputs.cache-hit != 'true'
+              run: |
+                npm install
+
+            - name: Build SSG
+              run: |
+                npm run build
+
+            - name: Github App Token Generate
+              uses: atolycs/create-app-auth@v1
+              id: github-token
+              with:
+                app-id: ${{ secrets.APP_ID }}
+                private-key: ${{ secrets.APP_PEM }}
+
+            - name: Deploy Pages
+              uses: cloudflare/pages-action@v1
+              id: deploy-cfp
+              with:
+                apiToken: ${{ secrets.CF_API_TOKEN }}
+                accountId: ${{ secrets.CF_ACCOUNT_ID }}
+                projectName: ${{ vars.CF_PROJECT_NAME }}
+                directory: "./dist"
+                gitHubToken: ${{ steps.github-token.outputs.token }}
+            
+            - name: Add commit status
+              uses: actions/github-script@v7
+              if: ${{ success() }}
+              with:
+                github-token: ${{ steps.github-token.outputs.token }}
+                script: |
+                  await github.rest.repos.createCommitStatus({
+                    ...context.repo,
+                    context: 'Cloudflare Pages',
+                    description: 'Deployment to Cloudflare Pages',
+                    state: 'success',
+                    sha: context.payload.pull_request?.head.sha ?? context.sha,
+                    target_url: "${{ steps.deploy-cfp.outputs.url }}"
+                  })
