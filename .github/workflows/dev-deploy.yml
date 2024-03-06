@@ -2,6 +2,10 @@ name: Develop Deploy
 on:
     workflow_dispatch:
 
+concurrency:
+  group: disable_concurrency
+  cancel-in-progress: true
+  
 jobs:
     setup:
         name: Environment Setup
@@ -77,6 +81,7 @@ jobs:
             
             - name: Add commit status
               uses: actions/github-script@v7
+              if: ${{ success() }}
               with:
                 github-token: ${{ steps.github-token.outputs.token }}
                 script: |
