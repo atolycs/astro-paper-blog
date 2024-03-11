@@ -21,6 +21,21 @@ const { frontmatter } = Astro.props;
   <main id="main-content">
     <section id="about" class="prose mb-28 max-w-3xl prose-img:border-0">
       <h1 class="text-2xl tracking-wider sm:text-3xl">{frontmatter.title}</h1>
+      <div class="container flex">
+        <div class="avatar w-60">
+          <img
+            class="rounded-full"
+            src="https://avatars.githubusercontent.com/atolycs"
+          />
+        </div>
+        <div class="about flex-nowrap pl-3">
+          <p>Name: Atolycs</p>
+          <p>
+            Github: <a href={`https://github.com/${SITE.author}`}>Atolycs</a>
+          </p>
+        </div>
+      </div>
+
       <slot />
     </section>
   </main>
